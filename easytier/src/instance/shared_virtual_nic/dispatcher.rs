@@ -743,6 +743,9 @@ impl SharedVirtualNicDispatcherTask {
                 }
             }
             Err(err) => {
+                // 诊断：mobile tun 打开失败此前完全静默（错误只发进无人读取的
+                // first_open channel），iOS 上排障时表现为"连接成功但数据面死"。
+                tracing::error!(?err, "mobile tun open failed");
                 self.cleanup(false);
                 let _ = first_open_sender.send(Err(err));
                 return;
