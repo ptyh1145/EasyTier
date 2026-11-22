@@ -116,6 +116,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
+
+    // 手写兜底：cfg_aliases! 宏在部分工具链组合下未生效（实测 iOS CI 上
+    // cfg(mobile) 为 false → tun_mobile/dispatcher 整条 mobile 链被编译裁剪
+    // → fd 注入变空操作、tun 永不打开、且无任何日志）。按同样的条件显式输出。
+    let macos_ne = env::var("CARGO_FEATURE_MACOS_NE").is_ok();
+    if matches!(target_os.as_str(), "ios" | "android" | "ohos")
+        || (target_os == "macos" && macos_ne)
+    {
+        println!("cargo:rustc-cfg=mobile");
+        println!("cargo:warning=emitting cfg(mobile) for target_os={}", target_os);
+    }
     // enable thunk-rs when target os is windows and arch is x86_64 or i686
     if target_os == "windows" && (target_arch == "x86" || target_arch == "x86_64") {
         thunk::thunk();
