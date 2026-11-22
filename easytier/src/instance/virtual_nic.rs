@@ -1687,13 +1687,16 @@ impl NicCtx {
         let mut claims = SharedIfConfigClaims::default();
         claims.ipv4_addresses.extend(global_ctx.get_ipv4());
         claims.ipv6_addresses.extend(global_ctx.get_ipv6());
+        tracing::info!("claims: static part done, before proxy_cidr_diff");
         if let Some(diff) = packet_plane.proxy_cidr_diff(&BTreeSet::new()).await {
+            tracing::info!("claims: proxy_cidr_diff returned");
             claims
                 .ipv4_routes
                 .extend(diff.current.into_iter().map(|route| {
                     SharedIpv4Route::new(route.first_address(), route.network_length(), None)
                 }));
         }
+        tracing::info!("claims: before public_ipv6_routes");
         claims
             .ipv6_routes
             .extend(
@@ -1705,12 +1708,15 @@ impl NicCtx {
                         SharedIpv6Route::new(route.first_address(), route.network_length(), None)
                     }),
             );
+        tracing::info!("claims: public_ipv6_routes returned, before public_ipv6_addr");
         if let Some(address) = packet_plane.public_ipv6_addr().await {
+            tracing::info!("claims: public_ipv6_addr returned");
             claims.ipv6_addresses.insert(address);
             claims
                 .ipv6_routes
                 .insert(SharedIpv6Route::new(Ipv6Addr::UNSPECIFIED, 0, Some(5)));
         }
+        tracing::info!("claims: mobile_tun_claims done");
         claims
     }
 

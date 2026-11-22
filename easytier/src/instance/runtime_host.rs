@@ -174,10 +174,16 @@ impl NativeInstanceRuntimeHost {
         Option<crate::instance::shared_virtual_nic::SharedIfConfigClaims>,
         bool,
     ) {
-        (
+        tracing::info!("host.mobile_tun_claims: computing static claims...");
+        let static_claims =
             crate::instance::virtual_nic::NicCtx::mobile_tun_claims(&self.global_ctx, packet_plane)
-                .await,
-            self.tun.current_mobile_tun_claims().await,
+                .await;
+        tracing::info!("host.mobile_tun_claims: static done, reading current claims...");
+        let current = self.tun.current_mobile_tun_claims().await;
+        tracing::info!("host.mobile_tun_claims: current done");
+        (
+            static_claims,
+            current,
             cfg!(feature = "magic-dns")
                 && self.global_ctx.get_flags().accept_dns
                 && self.global_ctx.get_ipv4().is_some(),

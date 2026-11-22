@@ -67,6 +67,7 @@ impl NativeTunRuntime {
         shared_virtual_nic_registry: ArcSharedVirtualNicRegistry,
         claims: Option<crate::instance::shared_virtual_nic::SharedIfConfigClaims>,
     ) -> anyhow::Result<()> {
+        tracing::info!(fd, "install_mobile_tun: entered");
         nic_state.drain().await;
         if fd <= 0 {
             return Ok(());

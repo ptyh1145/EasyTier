@@ -155,9 +155,11 @@ async fn collect_members(
             });
             continue;
         };
+        tracing::info!("collect_members: instance {} querying claims...", instance_id);
         let (claims, current_claims, dns) = runtime
             .mobile_tun_claims(&instance.as_ref().unwrap().packet_plane())
             .await;
+        tracing::info!("collect_members: instance {} claims collected (ipv4={} ipv6={})", instance_id, claims.ipv4_addresses.len(), claims.ipv6_addresses.len());
         members.push(MobileTunMember {
             instance_id,
             claims,
@@ -204,6 +206,7 @@ pub async fn attach_mobile_tun_fd(
         .collect::<BTreeSet<_>>()
         .into_iter()
         .collect::<Vec<_>>();
+    tracing::info!(?all_ids, "attach_mobile_tun_fd: entered, tun-enabled running instances");
     if fd <= 0 {
         let mut errors = Vec::new();
         for id in all_ids {
@@ -218,11 +221,15 @@ pub async fn attach_mobile_tun_fd(
         );
         return Ok(MobileTunConfig::default());
     }
+    tracing::info!("attach_mobile_tun_fd: collecting member claims...");
     let (members, rejected) = collect_members(manager, instance_ids.unwrap_or(&all_ids)).await;
+    tracing::info!("attach_mobile_tun_fd: collect_members done members={} rejected={}", members.len(), rejected.len());
     let (members, mut rejected) = select_members(members, rejected);
+    tracing::info!("attach_mobile_tun_fd: select_members done, attaching {} members", members.len());
     let mut attached = Vec::new();
     // Open once; a rejected member never replaces or tears down this shared fd.
     for member in members {
+        tracing::info!("attach_mobile_tun_fd: attaching member {}", member.instance_id);
         match attach_member(
             manager,
             member.instance_id,
@@ -232,7 +239,7 @@ pub async fn attach_mobile_tun_fd(
         )
         .await
         {
-            Ok(()) => attached.push(member),
+            Ok(()) => { tracing::info!("attach_mobile_tun_fd: member {} attached OK", member.instance_id); attached.push(member) },
             Err(error) if is_claim_conflict(&error) => {
                 attach_member(manager, member.instance_id, 0, false, None).await?;
                 rejected.push(MobileTunMemberError {
