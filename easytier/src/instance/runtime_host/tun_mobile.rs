@@ -68,11 +68,14 @@ impl NativeTunRuntime {
         claims: Option<crate::instance::shared_virtual_nic::SharedIfConfigClaims>,
     ) -> anyhow::Result<()> {
         tracing::info!(fd, "install_mobile_tun: entered");
+        tracing::info!("install: step1 draining nic_state...");
         nic_state.drain().await;
+        tracing::info!("install: step1 drained");
         if fd <= 0 {
             return Ok(());
         }
         let closed = Arc::new(Notify::new());
+        tracing::info!("install: step2 NicCtx::new starting...");
         let mut nic = NicCtx::new(
             global_ctx.clone(),
             packet_plane.clone(),
@@ -81,13 +84,16 @@ impl NativeTunRuntime {
             shared_virtual_nic_registry,
         )
         .await;
+        tracing::info!("install: step2 NicCtx::new done");
         let claims = match claims {
             Some(claims) => claims,
             None => NicCtx::mobile_tun_claims(&global_ctx, &packet_plane).await,
         };
+        tracing::info!("install: step3 run_for_mobile starting...");
         nic.run_for_mobile(fd, replace_tun_fd, claims)
             .await
             .context("attach mobile TUN failed")?;
+        tracing::info!("install: step3 run_for_mobile done");
         let magic_dns = if let Some(ip) = global_ctx.get_ipv4() {
             let shared_route_backend = nic.shared_route_backend_for_dns();
             MagicDnsRuntime::start(global_ctx, packet_plane, None, ip, shared_route_backend)

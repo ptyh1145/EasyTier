@@ -619,13 +619,17 @@ impl VirtualNic {
         config.raw_fd(tun_fd);
         config.close_fd_on_drop(false);
         config.up();
+        tracing::info!(tun_fd, "create_dev_for_mobile: config done, calling tun::create");
 
         let has_packet_info = cfg!(any(
             target_os = "ios",
             all(target_os = "macos", feature = "macos-ne")
         ));
+        tracing::info!(tun_fd, "create_dev_for_mobile: tun::create starting");
         let dev = tun::create(&config)?;
+        tracing::info!(tun_fd, "create_dev_for_mobile: tun::create ok, AsyncDevice::new");
         let dev = AsyncDevice::new(dev)?;
+        tracing::info!(tun_fd, "create_dev_for_mobile: AsyncDevice ok");
         let (a, b) = BiLock::new(dev);
         let ft = TunnelWrapper::new(
             TunStream::new(a, has_packet_info),
@@ -1758,8 +1762,10 @@ impl NicCtx {
         replace_tun_fd: bool,
         claims: super::shared_virtual_nic::SharedIfConfigClaims,
     ) -> Result<(), Error> {
+        tracing::info!("run_for_mobile: applying claims...");
         // Reject the entire member configuration before touching the shared fd.
         self.apply_mobile_tun_claims(claims).await?;
+        tracing::info!("run_for_mobile: claims applied, calling backend.create_dev_for_mobile");
         let (tunnel, ifname) = match self
             .backend
             .create_dev_for_mobile(tun_fd, replace_tun_fd)

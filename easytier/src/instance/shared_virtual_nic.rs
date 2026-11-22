@@ -378,7 +378,9 @@ impl SharedVirtualNic {
         tun_fd: std::os::fd::RawFd,
         replace_tun_fd: bool,
     ) -> Result<(), Error> {
+        tracing::info!("ensure_dispatcher_for_mobile: entered fd={}", tun_fd);
         self.ensure_valid()?;
+        tracing::info!("ensure_dispatcher_for_mobile: valid ok");
 
         if let Some(dispatcher) = &self.dispatcher {
             if replace_tun_fd {
@@ -390,6 +392,7 @@ impl SharedVirtualNic {
             return Ok(());
         }
 
+        tracing::info!("ensure_dispatcher: calling start_for_mobile...");
         let dispatcher = SharedVirtualNicDispatcher::start_for_mobile(
             self.nic.clone(),
             tun_fd,
@@ -397,7 +400,9 @@ impl SharedVirtualNic {
             self.valid.clone(),
         )
         .await?;
+        tracing::info!("ensure_dispatcher: start_for_mobile returned (dispatcher spawned)");
         self.sync_dispatcher_sources(&dispatcher).await?;
+        tracing::info!("ensure_dispatcher: sync_dispatcher_sources done");
         self.dispatcher = Some(dispatcher);
         Ok(())
     }
@@ -635,6 +640,7 @@ impl SharedVirtualNicMember {
         tun_fd: std::os::fd::RawFd,
         replace_tun_fd: bool,
     ) -> Result<Box<dyn Tunnel>, Error> {
+        tracing::info!("member.create_dev_for_mobile: entered fd={}", tun_fd);
         let member = self.clone();
         SHARED_VIRTUAL_NIC_RUNTIME
             .spawn(async move {
