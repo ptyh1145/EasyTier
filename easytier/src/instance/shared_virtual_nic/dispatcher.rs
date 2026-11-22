@@ -735,6 +735,7 @@ impl SharedVirtualNicDispatcherTask {
 
     #[cfg(mobile)]
     async fn run_for_mobile(mut self, first_open_sender: oneshot::Sender<Result<(), Error>>) {
+        tracing::info!("mobile tun dispatcher task started");
         match self.open_tun().await {
             Ok(()) => {
                 if first_open_sender.send(Ok(())).is_err() {
@@ -758,12 +759,14 @@ impl SharedVirtualNicDispatcherTask {
     async fn open_tun(&mut self) -> Result<(), Error> {
         let mobile = self.mobile.as_ref().unwrap();
         let tun_fd = mobile.tun_fd;
+        tracing::info!(fd = tun_fd, "open_tun: entered, acquiring nic lock");
         let tunnel = mobile
             .nic
             .lock()
             .await
             .create_dev_for_mobile(tun_fd)
             .await?;
+        tracing::info!(fd = tun_fd, "open_tun: device created, splitting");
         let (tun_stream, tun_sink) = tunnel.split();
         self.tun_stream = Some(tun_stream);
         self.tun_sink = Some(tun_sink);
